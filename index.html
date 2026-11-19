@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>USO 손목 DICOM 측정기 v1</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#111827;color:#e5e7eb;font-family:-apple-system,'Segoe UI','Apple SD Gothic Neo',sans-serif;font-size:13px;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+button,select,input{font:inherit;color:inherit;}
+.topbar{background:#0f172a;border-bottom:1px solid #1e3a5f;height:46px;flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 12px;}
+.title{font-weight:700;color:#4fc3f7;white-space:nowrap;}
+.title small{color:#64748b;font-weight:400;}
+.btn{background:#1e293b;border:1px solid #334155;border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap;}
+.btn:hover{background:#273549;}
+.btn.primary{background:#0369a1;border-color:#0284c7;}
+.btn.primary:hover{background:#0284c7;}
+.btn.danger{background:#7f1d1d;border-color:#991b1b;}
+.btn:disabled{opacity:.4;cursor:default;}
+.spacer{flex:1;}
+.muted{color:#94a3b8;}
+.badge{background:#0a1e35;border:1px solid #1e3a5f;border-radius:5px;padding:3px 8px;font-size:12px;white-space:nowrap;}
+.nav{display:flex;align-items:center;gap:6px;}
+.nav span{min-width:60px;text-align:center;color:#cbd5e1;}
+.main{flex:1;display:flex;min-height:0;}
+.viewer{flex:1;position:relative;background:#000;min-width:0;}
+#cv{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair;display:block;}
+.drop{position:absolute;inset:24px;border:2px dashed #334155;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#94a3b8;text-align:center;font-size:15px;pointer-events:none;}
+.drop small{font-size:12px;color:#64748b;}
+.drop.over{border-color:#4fc3f7;color:#4fc3f7;}
+.drop.hidden{display:none;}
+.stephint{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(3,105,161,.92);color:#fff;padding:6px 14px;border-radius:8px;font-weight:600;pointer-events:none;white-space:nowrap;}
+.vtools{position:absolute;top:10px;left:10px;display:flex;gap:4px;align-items:center;}
+.vtools button{background:rgba(15,23,42,.85);border:1px solid #334155;border-radius:5px;padding:3px 8px;cursor:pointer;}
+.vtools button.on{background:#0369a1;}
+.vtools span{background:rgba(15,23,42,.85);border-radius:5px;padding:3px 8px;color:#94a3b8;font-size:11px;}
+.help{position:absolute;bottom:6px;left:10px;right:10px;color:#64748b;font-size:11px;pointer-events:none;}
+.hidden{display:none !important;}
+.vh{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;}
+.crit{font-size:12px;line-height:1.5;margin:6px 0;}
+.crit b{color:#e5e7eb;}
+.crit div{padding:3px 0;border-top:1px solid #1e293b;color:#94a3b8;}
+.panel{width:380px;flex-shrink:0;background:#0f172a;border-left:1px solid #1e3a5f;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:10px;}
+section{background:#111c30;border:1px solid #1e3a5f;border-radius:8px;padding:10px;}
+section h3{font-size:12px;color:#4fc3f7;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+.grid{display:grid;grid-template-columns:70px 1fr;gap:6px 8px;align-items:center;}
+.grid label{color:#94a3b8;font-size:12px;}
+.grid input,.grid select{background:#0b1324;border:1px solid #334155;border-radius:5px;padding:4px 6px;width:100%;}
+.grid input.need,.grid select.need{border-color:#ef4444;}
+.seg{display:flex;gap:4px;}
+.seg button{flex:1;background:#0b1324;border:1px solid #334155;border-radius:5px;padding:4px 0;cursor:pointer;}
+.seg button.on{background:#0369a1;border-color:#0284c7;color:#fff;font-weight:700;}
+.ctx{margin-top:8px;font-size:11px;color:#64748b;word-break:break-all;}
+#activeSec.idle{opacity:.75;}
+.aname{font-weight:700;font-size:14px;color:#fff;margin-bottom:6px;}
+.steps{list-style:none;margin:6px 0;}
+.steps li{padding:2px 0 2px 20px;position:relative;color:#94a3b8;}
+.steps li::before{content:attr(data-n);position:absolute;left:0;width:15px;height:15px;border-radius:50%;background:#1e293b;font-size:10px;text-align:center;line-height:15px;top:3px;}
+.steps li.done{color:#22c55e;}
+.steps li.done::before{background:#166534;}
+.steps li.cur{color:#fff;font-weight:600;}
+.steps li.cur::before{background:#0369a1;}
+.aval{font-size:18px;font-weight:700;color:#facc15;margin:6px 0;min-height:24px;}
+.aval small{font-size:12px;color:#94a3b8;font-weight:400;display:block;}
+.row{display:flex;gap:6px;flex-wrap:wrap;}
+.other{display:grid;grid-template-columns:1fr 120px;gap:6px;margin-bottom:6px;}
+.cortex table{border-collapse:collapse;width:100%;font-size:12px;}
+.cortex th{color:#94a3b8;font-weight:400;text-align:left;padding:2px 4px;}
+.cortex td{padding:2px 4px;border-top:1px solid #1e293b;}
+.cxguide{margin-top:3px;}
+.cxguide summary{cursor:pointer;color:#7dd3fc;user-select:none;}
+.cxguide[open] summary{margin-bottom:2px;}
+.cortex select{background:#0b1324;border:1px solid #334155;border-radius:5px;padding:2px 4px;color:inherit;}
+.other input,.other select{background:#0b1324;border:1px solid #334155;border-radius:5px;padding:4px 6px;}
+.prog{font-weight:700;}
+.prog.ok{color:#22c55e;}
+.prog.no{color:#f59e0b;}
+.item{border-top:1px solid #1e293b;padding:6px 0;}
+.item:first-child{border-top:none;}
+.ihead{display:flex;align-items:center;gap:6px;}
+.ino{width:30px;color:#64748b;font-size:11px;flex-shrink:0;}
+.iname{flex:1;}
+.item.num .iname,.iname.crit-link{cursor:pointer;text-decoration:underline dotted #475569;}
+.item.num .iname:hover{color:#4fc3f7;}
+.item.active{background:#0c2a44;border-radius:6px;}
+.ival{font-size:12px;font-weight:700;min-width:70px;text-align:right;}
+.ival.empty{color:#ef4444;font-weight:400;}
+.ival.done{color:#22c55e;}
+.ival.na{color:#94a3b8;}
+.na-btn{background:#0b1324;border:1px solid #334155;border-radius:4px;padding:1px 6px;font-size:11px;cursor:pointer;color:#94a3b8;}
+.na-btn.on{background:#475569;color:#fff;}
+.opts{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0 0 36px;}
+.opts button{background:#0b1324;border:1px solid #334155;border-radius:4px;padding:2px 8px;font-size:12px;cursor:pointer;}
+.opts button.on{background:#0369a1;border-color:#0284c7;color:#fff;}
+.reason{margin:5px 0 0 36px;display:flex;gap:4px;}
+.reason input{flex:1;background:#0b1324;border:1px solid #334155;border-radius:4px;padding:2px 6px;}
+.others{margin-top:6px;}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:10;}
+.modal-bg.show{display:flex;}
+.modal{background:#0f172a;border:1px solid #1e3a5f;border-radius:10px;width:92vw;max-height:86vh;display:flex;flex-direction:column;}
+.modal header{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid #1e3a5f;}
+.modal header b{flex:1;color:#4fc3f7;}
+.modal header select{background:#0b1324;border:1px solid #334155;border-radius:5px;padding:4px 6px;color:inherit;}
+.tbl{overflow:auto;padding:0 14px 14px;}
+table{border-collapse:collapse;width:100%;font-size:12px;}
+th,td{border-bottom:1px solid #1e293b;padding:4px 6px;text-align:left;white-space:nowrap;}
+th{position:sticky;top:0;background:#0f172a;color:#94a3b8;}
+td.del{cursor:pointer;color:#ef4444;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="title">🦴 USO 손목 DICOM 측정기 <small>v1</small></span>
+  <button class="btn" id="fileBtn">📂 파일</button><input type="file" id="fileInput" class="vh" multiple>
+  <button class="btn" id="folderBtn">📁 폴더</button><input type="file" id="folderInput" class="vh" webkitdirectory multiple>
+  <span id="nav" class="nav hidden"><button class="btn" id="prevBtn">◀</button><span id="navLabel"></span><button class="btn" id="nextBtn">▶</button></span>
+  <span id="fileLabel" class="muted"></span>
+  <span class="spacer"></span>
+  <span id="psBadge" class="badge">픽셀간격 —</span>
+  <button id="listBtn" class="btn">📋 저장 목록</button>
+  <button id="csvBtn" class="btn">⬇ CSV 내보내기</button>
+</div>
+
+<div class="main">
+  <div class="viewer" id="viewer">
+    <canvas id="cv"></canvas>
+    <div id="drop" class="drop">DICOM 파일을 여기에 끌어다 놓거나 📂 파일 / 📁 폴더 버튼을 누르세요<small>파일은 이 브라우저 안에서만 읽습니다. 어디에도 업로드하지 않습니다.</small></div>
+    <div id="stepHint" class="stephint hidden"></div>
+    <div id="vtools" class="vtools hidden">
+      <button id="zIn" title="확대">＋</button><button id="zOut" title="축소">－</button><button id="zFit" title="화면 맞춤">⊙</button>
+      <button id="wlReset" title="밝기/대비 초기화">W/L 초기화</button>
+      <button id="invBtn" title="흑백 반전">반전</button>
+      <button id="ovBtn" title="저장한 측정 표시 켜기/끄기">저장 측정 표시</button>
+      <span id="wlLabel"></span>
+    </div>
+    <div class="help">좌클릭: 점 찍기 · 좌드래그: 이동 · 점 위에서 드래그: 점 옮기기 · 우드래그 또는 Shift+드래그: 밝기/대비 · 휠: 확대/축소 · Enter: 저장 · Backspace: 마지막 점 삭제 · Esc: 측정 취소</div>
+  </div>
+
+  <div class="panel">
+    <section>
+      <h3>측정 정보</h3>
+      <div class="grid">
+        <label>측정자</label><input id="rater" placeholder="이름 (필수)">
+        <label>회차</label><select id="trial"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+        <label>환자명</label><input id="pid" placeholder="환자명" title="📁 폴더로 열면 폴더 이름이 자동으로 들어간다">
+        <label>수술일</label><input id="opdate" type="date" title="환자명별로 한 번만 입력하면 기억됩니다">
+        <label>촬영일</label><input id="date" type="date">
+        <label id="phaseLbl" hidden>수술 당일</label><select id="phase" hidden title="촬영일이 수술일과 같아 날짜로 술전/술후를 가를 수 없을 때만 나타난다"><option value="">— 선택 —</option><option>술전</option><option>술후</option></select>
+        <label>View</label><select id="view"><option value="">— 선택 —</option><option>PA</option><option>Lateral</option><option>Oblique(내)</option><option>Oblique(외)</option><option>Forearm AP</option><option>Forearm Lat</option><option>기타</option></select>
+        <label>측</label><div class="seg"><button id="sideRt" data-side="Rt">Rt</button><button id="sideLt" data-side="Lt">Lt</button></div>
+      </div>
+      <div class="ctx" id="ctxInfo"></div>
+    </section>
+
+    <section id="activeSec" class="idle">
+      <h3>현재 측정</h3>
+      <div id="activeBody"><div class="muted">아래 체크리스트에서 변수 이름을 누르면 측정을 시작합니다.</div></div>
+    </section>
+
+    <section>
+      <h3><span>체크리스트</span><span id="progress" class="prog"></span></h3>
+      <div id="checklist"></div>
+      <div class="others">
+        <button class="btn" id="otherBtn">＋ 기타 (직접 입력)</button>
+        <div id="otherList"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <header><b id="modalTitle">저장 목록</b>
+      <select id="listPt" title="환자별로 보기. CSV 내보내기·삭제도 이 선택을 따른다"></select>
+      <button class="btn" id="csvBtn2">⬇ CSV 내보내기</button>
+      <button class="btn danger" id="clearPtBtn">이 환자 기록 삭제</button>
+      <button class="btn danger" id="clearBtn">내 기록 전체 삭제</button>
+      <button class="btn" id="closeModal">닫기</button></header>
+    <div class="tbl"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ════════════════════════════════════════════════════════════════
+// 변수 정의 (2026-09-29-radiological-variables-USO.md 기준)
+// ════════════════════════════════════════════════════════════════
+const TOOLS={
+  length:{name:'길이',n:2},
+  angle:{name:'각도(두 선)',n:4},
+  pardist:{name:'평행선 간 거리',n:4},
+  ptline:{name:'점-선 거리',n:3},
+  ratio:{name:'비율(b/a)',n:4},
+  lineratio:{name:'기준선 거리 비율(b/a)',n:4}
+};
+const NUM_VARS=[
+  {code:'UV',no:'1',name:'Ulnar variance',tool:'pardist',unit:'mm',
+   steps:['요골 근위부 장축 중심 (반드시 근위)','요골 장축 중심 2 (1번보다 원위의 골간부)','요골 원위 척측 모서리','척골 최원위부'],
+   note:'1번 점 기준 장축 방향 거리: 4번이 3번보다 길면 +, 짧으면 −'},
+  {code:'OST_ANG',no:'2',name:'절골 각도',tool:'angle',unit:'°',
+   steps:['척골 장축 점 1','척골 장축 점 2','절골선 끝점 1','절골선 끝점 2'],
+   note:'값 = |90° − θ| (θ: 장축과 절골선 사이 예각)'},
+  {code:'MCI',no:'3',name:'Callus Index (b/a)',tool:'lineratio',unit:'ratio',
+   steps:['척골 척측 가장자리 점 1 (기준선)','척골 척측 가장자리 점 2 (기준선)','척골 요측 정상 피질 외연','척골 요측 가골 최대점'],
+   note:'1–2번 점을 잇는 직선(척측 가장자리)까지의 수직 거리: a = 3번 점, b = 4번 점. 값 = b/a. view 간 최댓값(MCI)은 분석 단계에서 선택'},
+  {code:'GAP',no:'4',name:'절골면 최대 간극',tool:'ptline',unit:'mm',
+   steps:['근위 절골면 점 1','근위 절골면 점 2','원위 절골면에서 간극이 가장 넓은 점'],
+   note:'1–2번 점을 잇는 직선(근위 절골면)에서 3번 점(원위 절골면)까지의 수직 거리'},
+  {code:'STEPOFF',no:'4-1',name:'Step-off (절골부 피질 어긋남)',tool:'ptline',unit:'mm',
+   steps:['근위 골편 피질 표면 점 1 (절골선에서 떨어진 곳)','근위 골편 피질 표면 점 2 (절골선 바로 옆)','원위 골편의 같은 쪽 피질 표면 (절골선 바로 옆)'],
+   note:'근위 골편 피질선의 연장선에서 원위 골편 피질까지의 수직 거리. 어긋남이 가장 큰 쪽 피질에서 잰다. 11번 정합도 자동 계산에 쓰인다'},
+  {code:'OST_POS',no:'5',name:'절골부 위치 (원위단~절골선)',tool:'ptline',unit:'mm',
+   steps:['절골선 끝점 1','절골선 끝점 2','척골 원위단'],
+   note:'6번 척골 전체 길이를 잰 forearm 영상에서 함께 재는 것을 권장한다. 같은 영상이면 배율이 상쇄되어 그 영상 값으로 %를 계산한다'},
+  {code:'ULNA_LEN',no:'6',name:'척골 전체 길이 (6번 % 계산용)',tool:'length',unit:'mm',
+   steps:['척골 구상돌기(coronoid) 끝','원위 척골 끝'],
+   note:'forearm 영상에서만. 없으면 N/A. 측정 범위: 구상돌기 끝 ~ 원위 척골 끝. 절골 위치(%) 파악용이다(단축량은 UV로 평가). 같은 영상에 5번이 있으면 그 영상의 5번/6번으로 %를 계산한다(권장, 배율 상쇄). 없으면 5번 값을 같은 환자·측의 술후 척골 길이 중 촬영일이 가장 가까운 것과 짝짓는다. 수술일 이후는 자동으로 술후, 수술 당일 영상은 측정 정보의 [수술 당일] 칸에서 술전/술후를 골라야 한다. 수술일 칸이 비어 있으면 짝짓기를 하지 않는다'},
+  {code:'SCREW_DIST',no:'9',name:'나사-절골면 거리',tool:'ptline',unit:'mm',
+   steps:['절골선 끝점 1','절골선 끝점 2','나사에서 절골선에 가장 가까운 점'],
+   note:'절골선에 가장 가까운 나사를 고르고, 그 나사의 윤곽 중 절골선에 가장 가까운 점을 찍는다'},
+  {code:'WIRE_DIST',no:'10',name:'Wire bone hole-절골면 거리',tool:'ptline',unit:'mm',
+   steps:['절골선 끝점 1','절골선 끝점 2','절골선에 가장 가까운 골공의, 절골선에 가장 가까운 가장자리 점'],
+   note:'골공 4개 중 절골선에 가장 가까운 골공을 고르고, 그 골공 윤곽 중 절골선에 가장 가까운 점을 찍는다'}
+];
+const CAT_VARS=[
+  {code:'PLATE_POS',no:'8',name:'금속판 위치',opts:['Volar','Ulnar']},
+  {code:'PLATE_RM',no:'부가',name:'금속판 제거',opts:['N','Y'],reason:true}
+];
+// 8-1·8-2: 개수 직접 입력 (정수)
+const COUNT_VARS=[
+  {code:'PLATE_HOLES',no:'8-1',name:'금속판 홀 개수',ph:'홀 수'},
+  {code:'SCREW_N',no:'8-2',name:'사용된 나사 개수',ph:'나사 수'}
+];
+// 11번: 4번 간극 + 4-1번 step-off로 자동 판정 (입력 없음)
+const AUTO_VARS=[
+  {code:'REDUCTION',no:'11',name:'절골 정합도 (자동)',
+   crit:[['Anatomic','step-off < 1 mm 그리고 간극 < 2 mm'],['Imperfect','Anatomic·Poor가 아닌 경우 (step-off 1–2 mm 또는 간극 2–4 mm)'],['Poor','step-off > 2 mm 또는 간극 > 4 mm']],
+   critNote:'4번 절골면 최대 간극과 4-1번 step-off(PA)로 자동 계산. 둘 중 하나라도 없으면 계산하지 않음'}
+];
+// 12번: view별 피질 연결 개수
+// 상단 View 선택 → 12번 표에서 '이 영상' 줄
+const VIEW_TO_UNION={'PA':'PA','Forearm AP':'PA','Lateral':'LAT','Forearm Lat':'LAT','Oblique(내)':'IO','Oblique(외)':'EO'};
+const UNION_VIEWS=[['PA','PA'],['LAT','Lateral'],['IO','Internal oblique'],['EO','External oblique']];
+const CORTEX_VARS=[
+  {code:'UNION',no:'12',name:'유합: 피질 연결 개수',
+   guide:'나머지 view는 PACS에서 같은 날 촬영한 영상을 열어 확인한다. view마다 금속판에 가리지 않아 관찰할 수 있는 피질 수와 그중 가골·피질 연속성으로 연결된 피질 수를 입력한다. 그 view가 없으면 "view 없음". 4단계 유합 판정(Union/Consolidation/Delayed/Nonunion)은 수술일과 함께 분석 단계에서 계산한다. 유합 기준: 같은 날 영상들에서 연결 피질 합 ≥ 3이면 유합. 절골 흔적이 소실됐거나, view가 부족해 이 기준을 적용할 수 없는데 유합으로 판단되면 "유합 (판정자 판정)"을 체크한다. 그날 영상 중 한 장이라도 체크하면 그날 유합으로 본다.'}
+];
+// 체크리스트 순서 = 변수 번호 순서
+const CHECK_ORDER=['UV','OST_ANG','MCI','GAP','STEPOFF','OST_POS','ULNA_LEN','PLATE_POS','PLATE_HOLES','SCREW_N','SCREW_DIST','WIRE_DIST','REDUCTION','UNION','PLATE_RM'];
+const VAR_BY={};NUM_VARS.forEach(v=>{v.kind='num';VAR_BY[v.code]=v;});CAT_VARS.forEach(v=>{v.kind='cat';VAR_BY[v.code]=v;});COUNT_VARS.forEach(v=>{v.kind='count';VAR_BY[v.code]=v;});
+AUTO_VARS.forEach(v=>{v.kind='auto';VAR_BY[v.code]=v;});CORTEX_VARS.forEach(v=>{v.kind='cortex';VAR_BY[v.code]=v;});
+// 정합도 자동 계산 (g: 변수코드→기록)
+function reductionOf(g){
+  const G=g.GAP,O=g.STEPOFF;if(!G||!O)return NA; // 기록 없음 = 기본값 N/A
+  if(G.value===NA||O.value===NA)return NA;
+  if(G.unit!=='mm'||O.unit!=='mm'||typeof G.value!=='number'||typeof O.value!=='number')return'';
+  const gap=G.value,so=O.value;
+  if(so<1&&gap<2)return'Anatomic';
+  if(so>2||gap>4)return'Poor';
+  return'Imperfect';
+}
+// 피질 기록 해석
+function cortexOf(rec){
+  const a={};((rec&&rec.aux)||[]).forEach(([k,v])=>a[k]=v);
+  let obs=0,br=0,complete=true;
+  UNION_VIEWS.forEach(([k])=>{
+    const o=a[k+'_obs'];
+    if(o!==undefined&&o!==''&&o!=='none'){ // 비어 있으면 기본값 'view 없음'
+      const b=a[k+'_br'];obs+=+o;if(b===undefined||b==='')complete=false;else br+=+b;}
+  });
+  return{a,obs,br,complete,gone:a.trace_gone==='Y'||a.manual_union==='Y'}; // 유합 체크 (흔적 소실과 통합, manual_union은 잠깐 쓰인 옛 키)
+}
+const NA='N/A';
+const STORAGE_KEY='uso_wrist_v1';
+
+// ════════════════════════════════════════════════════════════════
+// DICOM 파서 (Explicit/Implicit VR Little Endian, 비압축)
+// ════════════════════════════════════════════════════════════════
+const UNDEF=0xFFFFFFFF;
+const LONG_VR=new Set(['OB','OD','OF','OL','OV','OW','SQ','SV','UC','UN','UR','UT','UV']);
+const TS_NAMES={'1.2.840.10008.1.2':'Implicit VR LE','1.2.840.10008.1.2.1':'Explicit VR LE','1.2.840.10008.1.2.2':'Explicit VR BE',
+  '1.2.840.10008.1.2.4.50':'JPEG Baseline','1.2.840.10008.1.2.4.51':'JPEG Extended','1.2.840.10008.1.2.4.57':'JPEG Lossless','1.2.840.10008.1.2.4.70':'JPEG Lossless SV1',
+  '1.2.840.10008.1.2.4.80':'JPEG-LS Lossless','1.2.840.10008.1.2.4.81':'JPEG-LS','1.2.840.10008.1.2.4.90':'JPEG 2000 Lossless','1.2.840.10008.1.2.4.91':'JPEG 2000','1.2.840.10008.1.2.5':'RLE'};
+
+function parseDicom(buffer){
+  const u8=new Uint8Array(buffer),dv=new DataView(buffer),n=u8.length;
+  const asc=(o,l)=>{let s='';for(let i=0;i<l&&o+i<n;i++)s+=String.fromCharCode(u8[o+i]);return s;};
+  if(n<132||asc(128,4)!=='DICM')throw new Error('DICOM 파일이 아닙니다 (DICM 표식 없음).');
+  const tags={};
+  function readEl(p,explicit){
+    const g=dv.getUint16(p,true),e=dv.getUint16(p+2,true);
+    if(g===0xFFFE){const len=dv.getUint32(p+4,true);return{g,e,vr:null,len,off:p+8,next:p+8+(len===UNDEF?0:len)};}
+    let vr=null,len,off;
+    if(explicit||g===0x0002){
+      vr=asc(p+4,2);
+      if(LONG_VR.has(vr)){len=dv.getUint32(p+8,true);off=p+12;}
+      else{len=dv.getUint16(p+6,true);off=p+8;}
+    }else{len=dv.getUint32(p+4,true);off=p+8;}
+    let next;
+    if(len===UNDEF){
+      if(g===0x7FE0&&e===0x0010)next=n; // encapsulated pixel data
+      else next=skipSeq(off,explicit && vr!=='UN');
+    }else next=off+len;
+    return{g,e,vr,len,off,next};
+  }
+  function skipSeq(q,explicit){
+    while(q+8<=n){
+      const g=dv.getUint16(q,true),e=dv.getUint16(q+2,true),len=dv.getUint32(q+4,true);
+      if(g===0xFFFE&&e===0xE0DD)return q+8;
+      if(g===0xFFFE&&e===0xE000){q=(len===UNDEF)?skipItem(q+8,explicit):q+8+len;}
+      else return q;
+    }
+    return n;
+  }
+  function skipItem(q,explicit){
+    while(q+8<=n){
+      const g=dv.getUint16(q,true),e=dv.getUint16(q+2,true);
+      if(g===0xFFFE&&e===0xE00D)return q+8;
+      q=readEl(q,explicit).next;
+    }
+    return n;
+  }
+  // 1) meta group
+  let p=132,ts='1.2.840.10008.1.2.1';
+  while(p+8<=n&&dv.getUint16(p,true)===0x0002){
+    const el=readEl(p,true);
+    if(el.e===0x0010)ts=asc(el.off,el.len).replace(/[\0 ]+$/,'');
+    p=el.next;
+  }
+  if(ts==='1.2.840.10008.1.2.2')throw new Error('Big Endian DICOM은 지원하지 않습니다.');
+  const explicit=ts!=='1.2.840.10008.1.2';
+  // 2) dataset (top level만 저장)
+  while(p+8<=n){
+    let el;
+    try{el=readEl(p,explicit);}catch(err){break;}
+    const key=((el.g<<16)|el.e)>>>0;
+    tags[key]=el;
+    if(el.next<=p)break;
+    p=el.next;
+  }
+  const T=(g,e)=>tags[((g<<16)|e)>>>0];
+  const str=(g,e)=>{const t=T(g,e);if(!t||t.len===UNDEF)return '';return asc(t.off,t.len).replace(/\0/g,'').trim();};
+  const us=(g,e,d)=>{const t=T(g,e);if(!t)return d;if(t.len>=2)return dv.getUint16(t.off,true);return d;};
+  const ds=(g,e)=>{const s=str(g,e);if(!s)return[];return s.split('\\').map(parseFloat).filter(v=>!isNaN(v));};
+
+  const rows=us(0x0028,0x0010,0),cols=us(0x0028,0x0011,0);
+  const bitsAlloc=us(0x0028,0x0100,16),bitsStored=us(0x0028,0x0101,bitsAlloc),pixRep=us(0x0028,0x0103,0),spp=us(0x0028,0x0002,1);
+  const photo=str(0x0028,0x0004).toUpperCase();
+  const slope=ds(0x0028,0x1053)[0]||1,intercept=ds(0x0028,0x1052)[0]||0;
+  const pd=T(0x7FE0,0x0010);
+  if(!pd)throw new Error('픽셀 데이터(7FE0,0010)가 없습니다.');
+  if(pd.len===UNDEF||(ts!=='1.2.840.10008.1.2'&&ts!=='1.2.840.10008.1.2.1'))
+    throw new Error('압축된 DICOM은 아직 지원하지 않습니다.\n전송구문: '+ts+' ('+(TS_NAMES[ts]||'알 수 없음')+')');
+  if(!rows||!cols)throw new Error('영상 크기(Rows/Columns)를 읽지 못했습니다.');
+  const npx=rows*cols;
+  const bytesPer=bitsAlloc/8;
+  const need=npx*spp*bytesPer;
+  if(pd.off+need>n)throw new Error('픽셀 데이터 길이가 부족합니다.');
+  const raw=buffer.slice(pd.off,pd.off+need); // 정렬 보장용 복사
+  let px;
+  if(spp===3){ // RGB → 회색
+    const src=new Uint8Array(raw);px=new Uint16Array(npx);
+    for(let i=0;i<npx;i++)px[i]=Math.round((src[i*3]+src[i*3+1]+src[i*3+2])/3);
+  }else if(bitsAlloc===8)px=new Uint8Array(raw);
+  else if(bitsAlloc===16){
+    if(pixRep===1){
+      px=new Int16Array(raw);
+      if(bitsStored<16){const sh=16-bitsStored;for(let i=0;i<npx;i++)px[i]=(px[i]<<sh)>>sh;}
+    }else{
+      px=new Uint16Array(raw);
+      if(bitsStored<16){const m=(1<<bitsStored)-1;for(let i=0;i<npx;i++)px[i]&=m;}
+    }
+  }else throw new Error('Bits Allocated '+bitsAlloc+'은 지원하지 않습니다.');
+  let mn=Infinity,mx=-Infinity;
+  for(let i=0;i<npx;i++){const v=px[i];if(v<mn)mn=v;if(v>mx)mx=v;}
+  // 픽셀 간격
+  let psR=null,psC=null,psSrc='없음';
+  let v=ds(0x0028,0x0030);
+  if(v.length&&v[0]>0){psR=v[0];psC=v[1]||v[0];psSrc='PixelSpacing (0028,0030)';}
+  else{v=ds(0x0018,0x1164);if(v.length&&v[0]>0){psR=v[0];psC=v[1]||v[0];psSrc='ImagerPixelSpacing (0018,1164)';}}
+  // 기본 W/L (원값 기준으로 환산)
+  let wc=ds(0x0028,0x1050)[0],ww=ds(0x0028,0x1051)[0];
+  if(wc!==undefined&&ww>0){wc=(wc-intercept)/slope;ww=ww/slope;}
+  else{ // 1–99 퍼센타일
+    const hist=new Uint32Array(mx-mn+1);for(let i=0;i<npx;i++)hist[px[i]-mn]++;
+    let acc=0,lo=mn,hi=mx;const a=npx*0.01,b=npx*0.99;let gotLo=false;
+    for(let k=0;k<hist.length;k++){acc+=hist[k];if(!gotLo&&acc>=a){lo=k+mn;gotLo=true;}if(acc>=b){hi=k+mn;break;}}
+    wc=(lo+hi)/2;ww=Math.max(1,hi-lo);
+  }
+  const sd=str(0x0008,0x0020);
+  return{rows,cols,px,mn,mx,mono1:photo==='MONOCHROME1',wc0:wc,ww0:ww,psR,psC,psSrc,ts,
+    studyDate:/^\d{8}$/.test(sd)?sd.slice(0,4)+'-'+sd.slice(4,6)+'-'+sd.slice(6,8):'',
+    seriesDesc:str(0x0008,0x103E),studyDesc:str(0x0008,0x1030),protocol:str(0x0018,0x1030),
+    laterality:str(0x0020,0x0062)||str(0x0020,0x0060),viewPos:str(0x0018,0x5101)};
+}
+
+// ════════════════════════════════════════════════════════════════
+// 상태
+// ════════════════════════════════════════════════════════════════
+const $=id=>document.getElementById(id);
+const cv=$('cv'),cx=cv.getContext('2d');
+const off=document.createElement('canvas'),ox=off.getContext('2d');
+const S={
+  im:null,file:'',wc:0,ww:1,invert:false,overlay:false,
+  scale:1,tx:0,ty:0,
+  info:null,        // 기준을 보여 줄 범주 변수 코드
+  active:null,      // {code,kind,tool,steps,name,no,unit,note,otherName}
+  pts:[],           // 이미지 좌표 [{x,y}]
+  side:'',
+  files:[],idx:-1
+};
+let mouse={down:false,btn:0,sx:0,sy:0,lx:0,ly:0,moved:false,mode:null,drag:-1};
+
+// ── 저장소 ──
+const REMOVED_CODES=new Set(['RADIUS_LEN','SCREW_CX']); // 삭제된 변수(6-1번 요골 길이, 7번 나사 합병증, 11/19). 다음 저장 때 저장소에서도 빠진다
+function loadRecs(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]').filter(r=>!REMOVED_CODES.has(r.var_code));}catch(e){return[];}}
+function saveRecs(a){localStorage.setItem(STORAGE_KEY,JSON.stringify(a));}
+// 수술일: 환자명 → YYYY-MM-DD (환자 단위라 영상 기록과 따로 저장)
+function loadOps(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY+'_opdates')||'{}');}catch(e){return{};}}
+function opOf(name){return(name&&loadOps()[name])||'';}
+function podOf(img,op){if(!img||!op)return'';return Math.round((Date.parse(img)-Date.parse(op))/864e5);}
+// 술전/술후: 수술일 전후는 날짜로, 수술 당일은 영상별 선택값(phase)으로
+function phaseOf(m){const op=opOf(m.patient_name||m.patient_code||'');if(!op||!m.image_date)return'';
+  return m.image_date<op?'술전':m.image_date>op?'술후':(m.phase||'수술 당일(미지정)');}
+function rater(){return $('rater').value.trim();}
+function ctxMatch(r){return r.rater===rater()&&String(r.trial)===$('trial').value&&r.file===S.file&&r.side===S.side;}
+function ctxRecs(){return loadRecs().filter(ctxMatch);}
+
+// ════════════════════════════════════════════════════════════════
+// 영상 표시
+// ════════════════════════════════════════════════════════════════
+function renderImage(){
+  const im=S.im;if(!im)return;
+  off.width=im.cols;off.height=im.rows;
+  const id=ox.createImageData(im.cols,im.rows),d=id.data;
+  const span=im.mx-im.mn+1,lut=new Uint8Array(span);
+  const lo=S.wc-S.ww/2,inv=im.mono1!==S.invert;
+  for(let k=0;k<span;k++){
+    let g=((k+im.mn)-lo)/S.ww*255;g=g<0?0:g>255?255:g;
+    lut[k]=inv?255-g:g;
+  }
+  const px=im.px,mn=im.mn,N=im.rows*im.cols;
+  for(let i=0,j=0;i<N;i++,j+=4){const g=lut[px[i]-mn];d[j]=g;d[j+1]=g;d[j+2]=g;d[j+3]=255;}
+  ox.putImageData(id,0,0);
+  $('wlLabel').textContent='WL '+Math.round(S.wc)+' / WW '+Math.round(S.ww);
+}
+function resize(){
+  const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr);
+  cx.setTransform(dpr,0,0,dpr,0,0);
+}
+function fit(){
+  if(!S.im)return;
+  const r=cv.getBoundingClientRect();
+  S.scale=Math.min(r.width/S.im.cols,r.height/S.im.rows)*0.96;
+  S.tx=(r.width-S.im.cols*S.scale)/2;S.ty=(r.height-S.im.rows*S.scale)/2;
+}
+const toImg=(sx,sy)=>({x:(sx-S.tx)/S.scale,y:(sy-S.ty)/S.scale});
+const toScr=p=>({x:p.x*S.scale+S.tx,y:p.y*S.scale+S.ty});
+
+// ════════════════════════════════════════════════════════════════
+// 기하 계산 (mm 좌표: x*psC, y*psR)
+// ════════════════════════════════════════════════════════════════
+function mmP(p){const im=S.im;return{x:p.x*(im.psC||1),y:p.y*(im.psR||1)};}
+function unitLen(){return S.im&&S.im.psR?'mm':'px';}
+const sub=(a,b)=>({x:a.x-b.x,y:a.y-b.y}),dot=(a,b)=>a.x*b.x+a.y*b.y,len=a=>Math.hypot(a.x,a.y);
+function acuteAngle(a1,a2,b1,b2){
+  const u=sub(a2,a1),v=sub(b2,b1);
+  const c=Math.abs(dot(u,v))/(len(u)*len(v)||1);
+  return Math.acos(Math.min(1,c))*180/Math.PI;
+}
+// 결과: {value, unit, aux:[[name,val],...]} 또는 null
+function compute(tool,pts,code){
+  const P=pts.map(mmP),L=unitLen();
+  if(tool==='length'&&P.length>=2)return{value:len(sub(P[1],P[0])),unit:L,aux:[]};
+  if(tool==='angle'&&P.length>=4){
+    const th=acuteAngle(P[0],P[1],P[2],P[3]);
+    if(code==='OST_ANG')return{value:Math.abs(90-th),unit:'°',aux:[['theta_deg',th]]};
+    return{value:th,unit:'°',aux:[]};
+  }
+  if(tool==='pardist'&&P.length>=4){
+    // 1번 점(요골 근위부)에서 장축 방향으로 잰 거리: d3(요골 척측 모서리), d4(척골 최원위부)
+    // UV = d4 − d3 → 4번이 3번보다 길면 +, 짧으면 −
+    const ax=sub(P[1],P[0]),l=len(ax)||1;let u={x:ax.x/l,y:ax.y/l};
+    if(dot(sub(P[2],P[0]),u)<0)u={x:-u.x,y:-u.y}; // 3번 점이 있는 쪽을 원위로
+    const d3=dot(sub(P[2],P[0]),u),d4=dot(sub(P[3],P[0]),u);
+    return{value:d4-d3,unit:L,aux:[]};
+  }
+  if(tool==='ptline'&&P.length>=3){
+    const ax=sub(P[1],P[0]),l=len(ax)||1;
+    const cr=Math.abs(ax.x*(P[2].y-P[0].y)-ax.y*(P[2].x-P[0].x))/l;
+    return{value:cr,unit:L,aux:[]};
+  }
+  if(tool==='lineratio'&&P.length>=4){
+    const ax=sub(P[1],P[0]),l=len(ax)||1;
+    const pd=q=>Math.abs(ax.x*(q.y-P[0].y)-ax.y*(q.x-P[0].x))/l;
+    const a=pd(P[2]),b=pd(P[3]);
+    return{value:a>0?b/a:NaN,unit:'ratio',aux:[['a_'+L,a],['b_'+L,b]]};
+  }
+  if(tool==='ratio'&&P.length>=4){
+    const a=len(sub(P[1],P[0])),b=len(sub(P[3],P[2]));
+    return{value:a>0?b/a:NaN,unit:'ratio',aux:[['a_'+L,a],['b_'+L,b]]};
+  }
+  return null;
+}
+function fmt(v,unit){
+  if(v===NA)return NA;
+  if(typeof v!=='number')return String(v);
+  if(unit==='ratio')return v.toFixed(3);
+  if(unit==='°')return v.toFixed(1)+'°';
+  return v.toFixed(2)+' '+unit;
+}
+
+// ════════════════════════════════════════════════════════════════
+// 그리기
+// ════════════════════════════════════════════════════════════════
+function line(a,b,col,w,dash){cx.strokeStyle=col;cx.lineWidth=w||1.5;cx.setLineDash(dash||[]);cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke();cx.setLineDash([]);}
+function extLine(a,b,col,w,dash,k){ // a,b 화면좌표, k배 연장
+  const d=sub(b,a),L=len(d)||1,e=(k||1)*Math.max(L,200)/L;
+  const m={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+  line({x:m.x-d.x*e,y:m.y-d.y*e},{x:m.x+d.x*e,y:m.y+d.y*e},col,w,dash);
+}
+function dotP(p,col,r,lbl){
+  cx.fillStyle=col;cx.beginPath();cx.arc(p.x,p.y,r||4,0,Math.PI*2);cx.fill();
+  cx.strokeStyle='#000';cx.lineWidth=1;cx.stroke();
+  if(lbl){cx.font='bold 11px sans-serif';cx.fillStyle='#000';cx.fillText(lbl,p.x+7,p.y-6);cx.fillStyle=col;cx.fillText(lbl,p.x+6,p.y-7);}
+}
+function text(t,p,col){
+  cx.font='bold 13px sans-serif';const w=cx.measureText(t).width;
+  cx.fillStyle='rgba(0,0,0,.65)';cx.fillRect(p.x-3,p.y-14,w+6,18);
+  cx.fillStyle=col;cx.fillText(t,p.x,p.y);
+}
+function drawMeasure(tool,ptsImg,col,label,showIdx){
+  const s=ptsImg.map(toScr);
+  if(tool==='length'){if(s.length>=2)line(s[0],s[1],col,2);}
+  if(tool==='ratio'){
+    if(s.length>=2)line(s[0],s[1],col,2);
+    if(s.length>=4)line(s[2],s[3],col,2);
+    if(s.length>=2)text('a',{x:(s[0].x+s[1].x)/2+6,y:(s[0].y+s[1].y)/2-6},col);
+    if(s.length>=4)text('b',{x:(s[2].x+s[3].x)/2+6,y:(s[2].y+s[3].y)/2-6},col);
+  }
+  if(tool==='angle'){
+    if(s.length>=2)extLine(s[0],s[1],col,1.5,[6,4],1.2);
+    if(s.length>=4)line(s[2],s[3],col,2);
+  }
+  if(tool==='ptline'){
+    if(s.length>=2)extLine(s[0],s[1],col,1.5,[6,4],1);
+    if(s.length>=3){
+      const d=sub(s[1],s[0]),L2=dot(d,d)||1,t=dot(sub(s[2],s[0]),d)/L2;
+      const f={x:s[0].x+d.x*t,y:s[0].y+d.y*t};line(s[2],f,col,2);
+    }
+  }
+  if(tool==='lineratio'){
+    if(s.length>=2)extLine(s[0],s[1],col,1.5,[6,4],1.5);
+    if(s.length>=2){
+      const d=sub(s[1],s[0]),L2=dot(d,d)||1;
+      [[2,'a'],[3,'b']].forEach(([i,lb])=>{if(!s[i])return;
+        const t=dot(sub(s[i],s[0]),d)/L2,f={x:s[0].x+d.x*t,y:s[0].y+d.y*t};
+        line(s[i],f,col,2);text(lb,{x:(s[i].x+f.x)/2+6,y:(s[i].y+f.y)/2-6},col);});
+    }
+  }
+  if(tool==='pardist'){
+    if(s.length>=2)extLine(s[0],s[1],col,1.5,[6,4],1.5);
+    if(s.length>=2){
+      const d=sub(s[1],s[0]),L=len(d)||1,u={x:d.x/L,y:d.y/L},nrm={x:-u.y,y:u.x},h=Math.max(40,30*S.scale/0.3);
+      [2,3].forEach(i=>{if(s[i])line({x:s[i].x-nrm.x*h,y:s[i].y-nrm.y*h},{x:s[i].x+nrm.x*h,y:s[i].y+nrm.y*h},col,1.5);});
+      if(s.length>=4){ // 장축 방향 거리 표시 (p2 위치에서 평행 이동)
+        const t=dot(sub(s[3],s[2]),u);
+        line(s[2],{x:s[2].x+u.x*t,y:s[2].y+u.y*t},'#fff',2.5);
+      }
+    }
+  }
+  s.forEach((p,i)=>dotP(p,col,4,showIdx?String(i+1):''));
+  if(label&&s.length){const p=s[s.length-1];text(label,{x:p.x+10,y:p.y+20},col);}
+}
+function redraw(){
+  const r=cv.getBoundingClientRect();
+  cx.clearRect(0,0,r.width,r.height);
+  if(!S.im)return;
+  cx.imageSmoothingEnabled=S.scale<1;
+  cx.drawImage(off,S.tx,S.ty,S.im.cols*S.scale,S.im.rows*S.scale);
+  if(S.overlay){
+    ctxRecs().forEach(rec=>{
+      if(!rec.pts||!rec.pts.length)return;
+      if(S.active&&activeKey()===recKey(rec))return; // 편집 중이면 생략
+      drawMeasure(rec.tool,rec.pts.map(p=>({x:p[0],y:p[1]})),'#38bdf8',(rec.var_no?rec.var_no+'. ':'')+rec.var_name+' '+fmt(rec.value,rec.unit),false);
+    });
+  }
+  if(S.active&&S.active.kind==='num'&&S.pts.length){
+    const res=compute(S.active.tool,S.pts,S.active.code);
+    drawMeasure(S.active.tool,S.pts,'#facc15',res?S.active.name+' '+fmt(res.value,res.unit):'',true);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// 파일 열기
+// ════════════════════════════════════════════════════════════════
+function checkMissingBeforeLeave(){
+  if(!S.im)return true;
+  if(S.active&&S.pts.length&&!confirm('저장하지 않은 측정이 있습니다. 버리고 넘어갈까요?'))return false;
+  if(!rater()||!S.side)return true;
+  const miss=missingItems();
+  if(miss.length&&!confirm('이 영상('+S.side+')에 입력이 덜 끝난 항목이 '+miss.length+'개 있습니다.\n\n'+miss.map(v=>'· '+v.no+'. '+v.name+' (관찰 피질을 골랐지만 연결 피질 수가 비어 있음)').join('\n')+'\n\n그래도 다음 영상으로 넘어갈까요?'))return false;
+  return true;
+}
+async function openFile(file){
+  let im;
+  try{im=parseDicom(await file.arrayBuffer());}
+  catch(err){alert('DICOM을 열 수 없습니다: '+file.name+'\n\n'+err.message);return false;}
+  S.im=im;S.file=file.name;S.info=null;S.wc=im.wc0;S.ww=im.ww0;S.invert=false;$('invBtn').classList.remove('on');
+  cancelActive(true);
+  // 자동 채움
+  if(im.studyDate)$('date').value=im.studyDate;
+  const desc=(im.seriesDesc+' '+im.protocol+' '+im.viewPos).toLowerCase();
+  let view='';
+  if(/forearm/.test(desc))view=/lat/.test(desc)?'Forearm Lat':'Forearm AP';
+  else if(/lat/.test(desc))view='Lateral';
+  else if(/obl/.test(desc))view='';
+  else if(/\bpa\b|\bap\b|\bpa\(|pa$/.test(desc))view='PA';
+  $('view').value=view;
+  const lat=(im.laterality||'').toUpperCase();
+  let side='';
+  if(lat==='R'||/\brt\b|right/.test(desc))side='Rt';else if(lat==='L'||/\blt\b|left/.test(desc))side='Lt';
+  setSide(side);
+  {const ex=(rater()&&side)?ctxRecs()[0]:null;$('phase').value=(ex&&ex.phase)||'';} // 저장된 수술 당일 술전/술후 복원
+  // 📁 폴더로 열었으면 최상위 폴더 이름 = 환자명. 이 영상에 다른 환자명으로 저장된 기록이 있으면 바꾸지 않고 알린다
+  {const rp=file.webkitRelativePath||'',seg=rp.split('/');
+   if(seg.length>1&&seg[0].trim()){
+     const fn=seg[0].trim().normalize('NFC'),ex=(rater()&&side)?ctxRecs().find(r=>r.patient_name):null;
+     if(ex&&ex.patient_name!==fn){
+       $('pid').value=ex.patient_name;
+       alert('이 영상은 "'+ex.patient_name+'"(으)로 저장된 기록이 있습니다.\n폴더 이름은 "'+fn+'"입니다.\n\n저장된 환자명을 그대로 두었습니다. 폴더 이름이 맞으면 환자명 칸을 고치세요(이 영상 기록에 함께 반영됩니다).');
+     }else $('pid').value=fn;
+     $('opdate').value=opOf($('pid').value.trim());
+   }}
+  // 표시
+  const b=$('psBadge');
+  if(im.psR){b.textContent=(Math.abs(im.psR-im.psC)>1e-4?'⚠ 비등방 ':'✓ ')+im.psR.toFixed(3)+(im.psR!==im.psC?' / '+im.psC.toFixed(3):'')+' mm/px';b.style.color=Math.abs(im.psR-im.psC)>1e-4?'#f59e0b':'#22c55e';b.title=im.psSrc;}
+  else{b.textContent='⚠ 픽셀간격 없음 — px 단위';b.style.color='#ef4444';alert('⚠️ 이 파일에는 픽셀 간격 정보가 없습니다.\n길이는 px 단위로 저장됩니다.');}
+  $('fileLabel').textContent=file.name+'  ·  '+(im.seriesDesc||im.studyDesc||'')+'  ·  '+im.cols+'×'+im.rows;
+  $('drop').classList.add('hidden');$('vtools').classList.remove('hidden');
+  renderImage();resize();fit();redraw();refreshUI();
+  return true;
+}
+async function goto(i){
+  if(i<0||i>=S.files.length)return;
+  if(!checkMissingBeforeLeave())return;
+  S.idx=i;$('navLabel').textContent=(i+1)+' / '+S.files.length;
+  await openFile(S.files[i]);
+}
+function setFiles(list){
+  const fs=[...list].filter(f=>/\.dcm$/i.test(f.name)||!/\.[a-z0-9]{1,5}$/i.test(f.name)).filter(f=>!f.name.startsWith('.'))
+    .sort((a,b)=>(a.webkitRelativePath||a.name).localeCompare(b.webkitRelativePath||b.name,undefined,{numeric:true}));
+  if(!fs.length){alert('DICOM 파일을 찾지 못했습니다.');return;}
+  if(!checkMissingBeforeLeave())return;
+  S.files=fs;S.idx=-1;
+  $('nav').classList.toggle('hidden',fs.length<2);
+  S.idx=0;$('navLabel').textContent='1 / '+fs.length;openFile(fs[0]);
+}
+$('fileBtn').onclick=()=>$('fileInput').click();
+$('folderBtn').onclick=()=>$('folderInput').click();
+$('fileInput').addEventListener('change',e=>{if(e.target.files.length)setFiles(e.target.files);e.target.value='';});
+$('folderInput').addEventListener('change',e=>{if(e.target.files.length)setFiles(e.target.files);e.target.value='';});
+$('prevBtn').onclick=()=>goto(S.idx-1);
+$('nextBtn').onclick=()=>goto(S.idx+1);
+const viewer=$('viewer');
+viewer.addEventListener('dragover',e=>{e.preventDefault();$('drop').classList.add('over');});
+viewer.addEventListener('dragleave',()=>$('drop').classList.remove('over'));
+viewer.addEventListener('drop',e=>{e.preventDefault();$('drop').classList.remove('over');if(e.dataTransfer.files.length)setFiles(e.dataTransfer.files);});
+
+// ════════════════════════════════════════════════════════════════
+// 측정 진행
+// ════════════════════════════════════════════════════════════════
+function recKey(r){return r.var_code+(r.var_code==='OTHER'?'|'+r.var_name:'');}
+function activeKey(){return S.active?S.active.code+(S.active.code==='OTHER'?'|'+S.active.name:''):'';}
+function needContext(){
+  const miss=[];
+  if(!rater())miss.push('측정자');
+  if(!S.side)miss.push('측(Rt/Lt)');
+  if(!$('view').value)miss.push('View');
+  if(!$('pid').value.trim())miss.push('환자명');
+  if(!$('date').value)miss.push('촬영일');
+  return miss;
+}
+function startVar(code,otherName,otherTool){
+  if(!S.im){alert('먼저 DICOM 파일을 여세요.');return;}
+  if(!rater()||!S.side){alert('측정자와 측(Rt/Lt)을 먼저 입력하세요.\n(측정 기록이 측정자·측별로 따로 저장됩니다)');return;}
+  if(S.active&&S.pts.length&&!confirm('저장하지 않은 측정을 버릴까요?'))return;
+  let v;
+  if(code==='OTHER'){
+    const t=TOOLS[otherTool];
+    v={code:'OTHER',no:'기타',name:otherName,tool:otherTool,kind:'num',unit:otherTool==='angle'?'°':otherTool==='ratio'?'ratio':unitLen(),
+       steps:Array.from({length:t.n},(_,i)=>'점 '+(i+1)+(otherTool==='pardist'?(i<2?' (기준 축)':' (기준점)'):otherTool==='ptline'?(i<2?' (선)':' (점)'):otherTool==='ratio'?(i<2?' (a)':' (b)'):otherTool==='angle'?(i<2?' (선 1)':' (선 2)'):''))};
+  }else v=VAR_BY[code];
+  S.info=null;
+  S.active=Object.assign({},v);
+  // 저장된 점이 있으면 불러와 수정
+  const ex=ctxRecs().find(r=>recKey(r)===activeKey());
+  if(ex&&ex.pts&&ex.pts.length&&ex.tool!==S.active.tool){ // 측정 방식이 바뀐 옛 기록(예: 3번 직경 방식)
+    flashHint('예전 방식으로 저장된 기록입니다. 새 방식으로 다시 찍어 저장하면 덮어씁니다');S.pts=[];
+  }else S.pts=(ex&&ex.pts&&ex.pts.length)?ex.pts.map(p=>({x:p[0],y:p[1]})):[];
+  refreshUI();redraw();
+}
+function cancelActive(silent){S.active=null;S.pts=[];if(!silent){refreshUI();redraw();}}
+function upsert(rec){
+  const all=loadRecs();
+  const i=all.findIndex(r=>ctxMatch(r)&&recKey(r)===recKey(rec));
+  if(i>=0){rec.id=all[i].id;all[i]=rec;}else all.push(rec);
+  saveRecs(all);
+}
+function removeRec(code,name){
+  const all=loadRecs().filter(r=>!(ctxMatch(r)&&recKey(r)===(code+(code==='OTHER'?'|'+name:''))));
+  saveRecs(all);
+}
+function baseRec(v){
+  const im=S.im;
+  return{id:Date.now()+'-'+Math.random().toString(36).slice(2,7),saved_at:new Date().toISOString(),
+    rater:rater(),trial:$('trial').value,patient_name:$('pid').value.trim(),image_date:$('date').value,view:$('view').value,side:S.side,phase:$('phase').value,
+    file:S.file,ps_row_mm:im.psR||'',ps_col_mm:im.psC||'',ps_source:im.psSrc,
+    var_no:v.no,var_code:v.code,var_name:v.name,tool:v.tool||'category',value:'',unit:'',aux:[],pts:[]};
+}
+function saveActive(){
+  const a=S.active;if(!a||a.kind!=='num')return;
+  if(S.pts.length<a.steps.length){alert('점이 '+(a.steps.length-S.pts.length)+'개 더 필요합니다.');return;}
+  const miss=needContext();
+  if(miss.length&&!confirm('다음 정보가 비어 있습니다: '+miss.join(', ')+'\n그래도 저장할까요?'))return;
+  const res=compute(a.tool,S.pts,a.code);
+  if(!res||!isFinite(res.value)){alert('값을 계산할 수 없습니다. 점 위치를 확인하세요.');return;}
+  const rec=baseRec(a);
+  rec.value=+res.value.toFixed(4);rec.unit=res.unit;rec.aux=res.aux.map(([k,v])=>[k,+v.toFixed(4)]);
+  rec.pts=S.pts.map(p=>[+p.x.toFixed(1),+p.y.toFixed(1)]);
+  upsert(rec);
+  cancelActive();
+}
+function setNA(code){
+  const v=VAR_BY[code];
+  const ex=ctxRecs().find(r=>r.var_code===code);
+  if(v.kind!=='cortex'){ // 기록이 없으면 이미 N/A(기본값). 값이 있으면 지워서 N/A로 되돌린다
+    if(!ex)return;
+    if(ex.value!==NA&&!confirm(v.no+'. '+v.name+'에 저장된 값('+fmt(ex.value,ex.unit)+')을 지우고 N/A로 되돌릴까요?'))return;
+    removeRec(code);
+  }
+  else if(ex&&ex.value===NA){removeRec(code);}
+  else{
+    if(ex&&!confirm(v.no+'. '+v.name+'에 저장된 값('+fmt(ex.value,ex.unit)+')을 지우고 N/A로 바꿀까요?'))return;
+    const rec=baseRec(v);rec.tool=v.kind==='num'?v.tool:v.kind==='count'?'count':'category';rec.value=NA;upsert(rec);
+  }
+  if(S.active&&S.active.code===code)cancelActive(true);
+  refreshUI();redraw();
+}
+function setCat(code,opt){
+  if(!rater()||!S.side){alert('측정자와 측(Rt/Lt)을 먼저 입력하세요.');return;}
+  if(!S.im){alert('먼저 DICOM 파일을 여세요.');return;}
+  const v=VAR_BY[code],ex=ctxRecs().find(r=>r.var_code===code);
+  if(ex&&ex.value===opt){removeRec(code);}
+  else{const rec=baseRec(v);rec.value=opt;rec.unit='category';
+    if(code==='PLATE_RM'&&ex&&ex.aux)rec.aux=ex.aux;upsert(rec);}
+  refreshUI();
+}
+function setCortex(key,val){
+  if(!rater()||!S.side){alert('측정자와 측(Rt/Lt)을 먼저 입력하세요.');refreshUI();return;}
+  if(!S.im){alert('먼저 DICOM 파일을 여세요.');return;}
+  const v=VAR_BY.UNION,ex=ctxRecs().find(r=>r.var_code==='UNION');
+  const a=(ex&&ex.value!==NA)?cortexOf(ex).a:{};
+  a[key]=val;if(key==='trace_gone')delete a.manual_union; // 유합 체크 키 통일
+  // 관찰 수가 줄면 연결 수를 맞춘다
+  UNION_VIEWS.forEach(([k])=>{const o=a[k+'_obs'];
+    if(o==='none'||o===undefined||o==='')delete a[k+'_br'];
+    else if(a[k+'_br']!==undefined&&a[k+'_br']!==''&&+a[k+'_br']>+o)a[k+'_br']=o;
+    else if(+o===0)a[k+'_br']='0';});
+  const rec=baseRec(v);rec.tool='cortex';rec.unit='cortex';
+  rec.aux=Object.entries(a);
+  const c=cortexOf(rec);
+  rec.value=c.complete?(c.br+'/'+c.obs):'입력 중';
+  upsert(rec);refreshUI();
+}
+function setCount(code,str){
+  if(!rater()||!S.side){alert('측정자와 측(Rt/Lt)을 먼저 입력하세요.');refreshUI();return;}
+  if(!S.im){alert('먼저 DICOM 파일을 여세요.');refreshUI();return;}
+  const v=VAR_BY[code],t=String(str).trim();
+  if(t===''){if(ctxRecs().some(r=>r.var_code===code))removeRec(code);refreshUI();return;} // 비우면 N/A
+  if(!/^\d+$/.test(t)||+t>30){alert(v.no+'. '+v.name+': 0–30 사이 정수로 입력하세요.');refreshUI();return;}
+  const rec=baseRec(v);rec.tool='count';rec.unit='count';rec.value=+t;upsert(rec);refreshUI();
+}
+function setReason(code,txt){
+  const all=loadRecs(),i=all.findIndex(r=>ctxMatch(r)&&r.var_code===code);
+  if(i<0){alert('먼저 제거 여부(Y/N)를 고르세요.');return;}
+  all[i].aux=txt?[['reason',txt]]:[];saveRecs(all);refreshUI();
+}
+function missingItems(){
+  const recs=ctxRecs();
+  return CHECK_ORDER.map(c=>VAR_BY[c]).filter(v=>{
+    if(v.kind==='auto')return false;
+    const r=recs.find(x=>x.var_code===v.code);
+    if(!r)return false; // 기록 없음 = 기본값(N/A, 피질은 view 없음)
+    if(v.kind==='cortex'&&r.value!==NA&&!cortexOf(r).complete)return true;
+    return false;
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// UI
+// ════════════════════════════════════════════════════════════════
+function setHTML(el,h){if(el._h!==h){el.innerHTML=h;el._h=h;}}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function setSide(s){S.side=s;$('sideRt').classList.toggle('on',s==='Rt');$('sideLt').classList.toggle('on',s==='Lt');}
+function refreshUI(){
+  // 필수칸 표시
+  $('rater').classList.toggle('need',!rater());
+  $('view').classList.toggle('need',!$('view').value);
+  $('pid').classList.toggle('need',!$('pid').value.trim());
+  $('opdate').classList.toggle('need',!$('opdate').value);
+  {const same=!!$('opdate').value&&$('date').value===$('opdate').value; // 수술 당일 영상만 술전/술후 선택칸 표시
+   $('phase').hidden=$('phaseLbl').hidden=!same;$('phase').classList.toggle('need',same&&!$('phase').value);}
+  $('ctxInfo').textContent=S.im?('기록 단위: '+(rater()||'측정자?')+' · '+$('trial').value+'회차 · '+(S.side||'측?')+' · '+S.file):'';
+  // 활성 측정
+  const a=S.active,body=$('activeBody');
+  $('activeSec').classList.toggle('idle',!a);
+  if((!a||a.kind!=='num')&&S.info){
+    const v=VAR_BY[S.info],cur=(S.im&&rater()&&S.side)?ctxRecs().find(r=>r.var_code===v.code):null;
+    $('activeSec').classList.remove('idle');
+    setHTML(body,'<div class="aname">'+esc(v.no)+'. '+esc(v.name)+' <span class="muted" style="font-size:11px;font-weight:400">[판정 기준]</span></div>'
+      +'<div class="crit">'+v.crit.map(([k,t])=>'<div><b>'+esc(k)+'</b> — '+esc(t)+'</div>').join('')+'</div>'
+      +(v.critNote?'<div class="muted" style="font-size:11px">'+esc(v.critNote)+'</div>':'')
+      +(v.opts?'<div class="opts" style="margin-left:0;margin-top:8px">'+v.opts.map(o=>'<button data-cat="'+v.code+'" data-opt="'+esc(o)+'" class="'+(cur&&cur.value===o?'on':'')+'">'+esc(o)+'</button>').join('')+'</div>'
+        :(()=>{const gm={};if(S.im&&rater()&&S.side)ctxRecs().forEach(x=>gm[x.var_code]=x);const rv=reductionOf(gm);
+          return '<div style="margin-top:8px">현재 판정: <b>'+esc(rv||'—')+'</b> <span class="muted" style="font-size:11px">(간극 '+(gm.GAP?esc(fmt(gm.GAP.value,gm.GAP.unit)):'N/A')+', step-off '+(gm.STEPOFF?esc(fmt(gm.STEPOFF.value,gm.STEPOFF.unit)):'N/A')+')</span></div>';})()));
+    $('stepHint').classList.add('hidden');
+  }else if(!a||a.kind!=='num'){
+    body.innerHTML='<div class="muted">아래 체크리스트에서 <b>밑줄 친 변수 이름</b>을 누르면 측정을 시작합니다.</div>';
+    $('stepHint').classList.add('hidden');
+  }else{
+    const res=compute(a.tool,S.pts,a.code);
+    const n=S.pts.length;
+    body.innerHTML='<div class="aname">'+esc(a.no)+'. '+esc(a.name)+' <span class="muted" style="font-size:11px;font-weight:400">['+TOOLS[a.tool].name+']</span></div>'
+      +'<ol class="steps">'+a.steps.map((s,i)=>'<li data-n="'+(i+1)+'" class="'+(i<n?'done':i===n?'cur':'')+'">'+esc(s)+'</li>').join('')+'</ol>'
+      +(a.note?'<div class="muted" style="font-size:11px">'+esc(a.note)+'</div>':'')
+      +'<div class="aval">'+(res&&isFinite(res.value)?fmt(res.value,res.unit)+res.aux.map(([k,v])=>'<small>'+esc(k)+' = '+v.toFixed(k.startsWith('theta')?1:2)+'</small>').join(''):'')+'</div>'
+      +'<div class="row"><button class="btn primary" id="saveBtn"'+(n<a.steps.length?' disabled':'')+'>💾 저장 (Enter)</button>'
+      +'<button class="btn" id="undoBtn"'+(n?'':' disabled')+'>↶ 마지막 점</button><button class="btn" id="clearPts">점 모두 지우기</button><button class="btn" id="cancelBtn">취소</button></div>';
+    $('saveBtn').onclick=saveActive;
+    $('undoBtn').onclick=()=>{S.pts.pop();refreshUI();redraw();};
+    $('clearPts').onclick=()=>{S.pts=[];refreshUI();redraw();};
+    $('cancelBtn').onclick=()=>cancelActive();
+    const h=$('stepHint');
+    if(n<a.steps.length){h.textContent='('+(n+1)+'/'+a.steps.length+') '+a.steps[n];h.classList.remove('hidden');}
+    else{h.textContent='점을 드래그해 수정하거나 Enter로 저장';h.classList.remove('hidden');}
+  }
+  // 체크리스트
+  const recs=(S.im&&rater()&&S.side)?ctxRecs():[];
+  const get=c=>recs.find(r=>r.var_code===c);
+  let done=0;
+  setHTML($('checklist'),CHECK_ORDER.map(c=>{
+    const v=VAR_BY[c],r=get(c);
+    if(v.kind==='auto'){
+      const gm={};recs.forEach(x=>gm[x.var_code]=x);const rv=reductionOf(gm);
+      return '<div class="item auto"><div class="ihead"><span class="ino">'+esc(v.no)+'</span>'
+        +'<span class="iname crit-link" data-code="'+c+'">'+esc(v.name)+'</span>'
+        +(rv!==NA?'<span class="ival done">'+esc(rv)+'</span>':'<span class="ival na" title="4번 간극과 4-1번 step-off를 모두 재면 자동 판정">N/A · 4·4-1 측정 시 자동</span>')+'</div></div>';
+    }
+    const isNA=v.kind==='cortex'?(r&&r.value===NA):(!r||r.value===NA); // 기록 없음 = N/A
+    const cx=v.kind==='cortex'&&!isNA?cortexOf(r||{aux:[]}):null;
+    if(r&&!isNA&&!(cx&&!cx.complete))done++; // 12번 기본값(모든 view 없음)은 입력으로 세지 않음
+    const valHtml=isNA?'<span class="ival na">N/A</span>'
+      :cx&&!cx.complete?'<span class="ival empty">입력 중</span>'
+      :'<span class="ival done">'+esc(v.kind==='num'?fmt(r.value,r.unit):cx&&cx.obs===0&&UNION_VIEWS.every(([k])=>{const o=cx.a[k+'_obs'];return o===undefined||o===''||o==='none';})?'모든 view 없음':cx?('연결 '+cx.br+'/'+cx.obs+(cx.gone?' · 흔적 소실':'')):r.value)+'</span>';
+    let h='<div class="item '+v.kind+(a&&a.code===c?' active':'')+'"><div class="ihead"><span class="ino">'+esc(v.no)+'</span>'
+      +'<span class="iname'+(v.crit?' crit-link':'')+'" data-code="'+c+'">'+esc(v.name)+'</span>'+valHtml
+      +'<button class="na-btn'+(isNA?' on':'')+'" data-na="'+c+'" title="해당 없음">N/A</button></div>';
+    if(v.kind==='cortex'&&!isNA){
+      const A=cx?cx.a:{};
+      const sel=(key,opts,cur,dis)=>'<select data-cx="'+key+'"'+(dis?' disabled':'')+'>'+opts.map(([val,lab])=>'<option value="'+val+'"'+(String(cur??'')===val?' selected':'')+'>'+lab+'</option>').join('')+'</select>';
+      const curU=VIEW_TO_UNION[$('view').value],curLab=(UNION_VIEWS.find(([k])=>k===curU)||[])[1];
+      if(!curU){
+        h+='<div class="cortex"><div style="font-size:12px;margin:4px 0"><b style="color:#ef4444">상단 View(PA·Lateral·Oblique)를 고르면 입력칸이 나온다.</b></div></div>';
+      }else{
+        const o=A[curU+'_obs'];const has=o!==undefined&&o!==''&&o!=='none';
+        const bo=[['','—']];if(has)for(let i=0;i<=+o;i++)bo.push([String(i),String(i)]);
+        // 예전 방식으로 다른 view에 넣어 둔 값이 있으면 합계에 들어가므로 알려 준다
+        const oth=UNION_VIEWS.filter(([k])=>k!==curU&&A[k+'_obs']!==undefined&&A[k+'_obs']!==''&&A[k+'_obs']!=='none')
+          .map(([k,lab])=>lab+' '+(A[k+'_br']??'?')+'/'+A[k+'_obs']);
+        h+='<div class="cortex"><table>'
+          +'<tr><th>view</th><th>관찰 가능 피질</th><th>연결된 피질</th></tr>'
+          +'<tr><td><b style="color:#facc15">'+esc(curLab)+'</b></td><td>'+sel(curU+'_obs',[['none','—'],['0','0'],['1','1'],['2','2']],has?o:'none')+'</td><td>'+sel(curU+'_br',bo,A[curU+'_br'],!has||+o===0)+'</td></tr>'
+          +'</table>'
+          +(oth.length?'<div class="muted" style="font-size:11px;margin-top:4px">이 영상 기록에 다른 view 값도 있음 (합계에 포함): '+esc(oth.join(', '))+'</div>':'')
+          +'<label style="font-size:12px;display:block;margin-top:6px"><input type="checkbox" data-cxgone="1"'+(cx&&cx.gone?' checked':'')+'> 유합</label></div>';
+      }
+    }
+    if(v.kind==='count'){
+      h+='<div class="reason"><input type="number" min="0" max="30" step="1" style="flex:0 0 90px" data-cnt="'+c+'" placeholder="'+esc(v.ph)+'" value="'+(r&&r.value!==NA?esc(r.value):'')+'"><span class="muted" style="font-size:11px;align-self:center">개 · 입력 후 Enter 또는 칸 밖 클릭</span></div>';
+    }
+    if(v.kind==='cat'){
+      h+='<div class="opts">'+v.opts.map(o=>'<button data-cat="'+c+'" data-opt="'+esc(o)+'" class="'+(r&&r.value===o?'on':'')+'">'+esc(o)+'</button>').join('')+'</div>';
+      if(v.reason&&r&&r.value==='Y'){
+        const rs=(r.aux||[]).find(x=>x[0]==='reason');
+        h+='<div class="reason"><input id="reasonIn" placeholder="제거 이유 (예: 고정 안정화 후, 합병증)" value="'+esc(rs?rs[1]:'')+'"><button class="btn" id="reasonSave">저장</button></div>';
+      }
+    }
+    return h+'</div>';
+  }).join(''));
+  const total=CHECK_ORDER.filter(c=>VAR_BY[c].kind!=='auto').length,p=$('progress');
+  const inc=(S.im&&rater()&&S.side)?missingItems().length:0;
+  p.textContent=(S.im&&rater()&&S.side)?'값 입력 '+done+' / '+total+' · 나머지 N/A'+(inc?' · 미완료 '+inc:''):'측정자·측 입력 필요';
+  p.className='prog '+(inc?'no':'ok');
+  // 기타 목록
+  const others=recs.filter(r=>r.var_code==='OTHER');
+  let oh=others.map(r=>'<div class="item num'+(a&&a.code==='OTHER'&&a.name===r.var_name?' active':'')+'"><div class="ihead"><span class="ino">기타</span><span class="iname" data-other="'+esc(r.var_name)+'" data-tool="'+r.tool+'">'+esc(r.var_name)+'</span><span class="ival done">'+esc(fmt(r.value,r.unit))+'</span><button class="na-btn" data-delother="'+esc(r.var_name)+'">삭제</button></div></div>').join('');
+  if(a&&a.code==='OTHER'&&!others.some(r=>r.var_name===a.name))
+    oh+='<div class="item num active"><div class="ihead"><span class="ino">기타</span><span class="iname">'+esc(a.name)+'</span><span class="ival empty">측정 중</span></div></div>';
+  setHTML($('otherList'),oh);
+}
+$('checklist').addEventListener('click',e=>{
+  const t=e.target;
+  if(t.dataset.na){setNA(t.dataset.na);return;}
+  if(t.dataset.cat){if(VAR_BY[t.dataset.cat].crit&&!S.active)S.info=t.dataset.cat;setCat(t.dataset.cat,t.dataset.opt);return;}
+  if(t.id==='reasonSave'){setReason('PLATE_RM',$('reasonIn').value.trim());return;}
+  if(t.dataset.code){
+    const v=VAR_BY[t.dataset.code];
+    if(v.kind==='num')startVar(t.dataset.code);
+    else if(v.crit){if(S.active&&S.pts.length&&!confirm('저장하지 않은 측정을 버릴까요?'))return;cancelActive(true);S.info=v.code;refreshUI();redraw();}
+  }
+});
+$('checklist').addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.cx){setCortex(t.dataset.cx,t.value);return;}
+  if(t.dataset.cxgone){setCortex('trace_gone',t.checked?'Y':'N');return;}
+  if(t.dataset.cnt){setCount(t.dataset.cnt,t.value);return;}
+});
+$('activeBody').addEventListener('click',e=>{const t=e.target;if(t.dataset.cat)setCat(t.dataset.cat,t.dataset.opt);});
+$('checklist').addEventListener('keydown',e=>{if(e.target.dataset.cnt&&e.key==='Enter'){e.stopPropagation();e.target.blur();return;}
+  if(e.target.id==='reasonIn'&&e.key==='Enter'){e.stopPropagation();setReason('PLATE_RM',e.target.value.trim());}});
+$('otherList').addEventListener('click',e=>{
+  const t=e.target;
+  if(t.dataset.delother!==undefined){if(confirm('"'+t.dataset.delother+'" 측정을 삭제할까요?')){removeRec('OTHER',t.dataset.delother);refreshUI();redraw();}return;}
+  if(t.dataset.other!==undefined)startVar('OTHER',t.dataset.other,t.dataset.tool);
+});
+$('otherBtn').onclick=()=>{
+  if(!S.im){alert('먼저 DICOM 파일을 여세요.');return;}
+  const name=prompt('측정 이름을 입력하세요 (예: Radial inclination)');
+  if(!name||!name.trim())return;
+  const tool=prompt('도구 번호를 고르세요\n1 = 길이\n2 = 각도(두 선)\n3 = 평행선 간 거리\n4 = 점-선 거리\n5 = 비율(b/a)','1');
+  const map={'1':'length','2':'angle','3':'pardist','4':'ptline','5':'ratio'};
+  if(!map[(tool||'').trim()]){alert('1–5 중에서 고르세요.');return;}
+  startVar('OTHER',name.trim(),map[tool.trim()]);
+};
+['rater','trial'].forEach(id=>$(id).addEventListener('input',()=>{if(S.active&&S.pts.length){/*유지*/}refreshUI();redraw();}));
+// 환자명·촬영일·view를 바꾸면 이 영상의 기존 기록에도 반영
+function propagate(){
+  if(!S.im||!rater()||!S.side){refreshUI();return;}
+  const all=loadRecs();let ch=false;
+  all.forEach(r=>{if(ctxMatch(r)){r.patient_name=$('pid').value.trim();r.image_date=$('date').value;r.view=$('view').value;r.phase=$('phase').value;ch=true;}});
+  if(ch)saveRecs(all);refreshUI();
+}
+['pid','date','view','phase'].forEach(id=>$(id).addEventListener('change',propagate));
+$('pid').addEventListener('input',()=>refreshUI());
+// 환자명을 바꾸면 기억된 수술일을 불러오고, 수술일을 바꾸면 그 환자에 기억
+$('pid').addEventListener('change',()=>{$('opdate').value=opOf($('pid').value.trim());refreshUI();});
+$('opdate').addEventListener('change',()=>{
+  const n=$('pid').value.trim();if(!n){alert('환자명을 먼저 입력하세요. 수술일은 환자명별로 기억됩니다.');$('opdate').value='';return;}
+  const o=loadOps();if($('opdate').value)o[n]=$('opdate').value;else delete o[n];
+  try{localStorage.setItem(STORAGE_KEY+'_opdates',JSON.stringify(o));}catch(e){}refreshUI();
+});
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
+  if(S.active&&S.pts.length&&!confirm('저장하지 않은 측정을 버릴까요?'))return;
+  cancelActive(true);setSide(b.dataset.side);refreshUI();redraw();
+});
+// 측정자 이름은 브라우저에 기억
+$('rater').value=localStorage.getItem(STORAGE_KEY+'_rater')||'';
+$('rater').addEventListener('change',()=>localStorage.setItem(STORAGE_KEY+'_rater',rater()));
+
+// ════════════════════════════════════════════════════════════════
+// 마우스·키보드
+// ════════════════════════════════════════════════════════════════
+function evPos(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+function nearPt(sp){
+  if(!S.active)return-1;
+  let best=-1,bd=10;
+  S.pts.forEach((p,i)=>{const s=toScr(p),d=Math.hypot(s.x-sp.x,s.y-sp.y);if(d<bd){bd=d;best=i;}});
+  return best;
+}
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('mousedown',e=>{
+  if(!S.im)return;
+  const p=evPos(e);
+  mouse={down:true,btn:e.button,sx:p.x,sy:p.y,lx:p.x,ly:p.y,moved:false,mode:null,drag:-1};
+  if(e.button===2||(e.button===0&&e.shiftKey))mouse.mode='wl';
+  else if(e.button===0){const i=nearPt(p);if(i>=0){mouse.mode='drag';mouse.drag=i;}else mouse.mode='pan';}
+  else if(e.button===1)mouse.mode='pan';
+});
+window.addEventListener('mousemove',e=>{
+  if(!mouse.down)return;
+  const p=evPos(e),dx=p.x-mouse.lx,dy=p.y-mouse.ly;
+  if(Math.hypot(p.x-mouse.sx,p.y-mouse.sy)>3)mouse.moved=true;
+  mouse.lx=p.x;mouse.ly=p.y;
+  if(mouse.mode==='drag'){S.pts[mouse.drag]=toImg(p.x,p.y);redraw();refreshValueOnly();}
+  else if(mouse.mode==='pan'&&mouse.moved){S.tx+=dx;S.ty+=dy;cv.style.cursor='grabbing';redraw();}
+  else if(mouse.mode==='wl'){
+    const k=Math.max(1,(S.im.mx-S.im.mn)/600);
+    S.ww=Math.max(1,S.ww+dx*k);S.wc=S.wc+dy*k;
+    scheduleRender();
+  }
+});
+window.addEventListener('mouseup',e=>{
+  if(!mouse.down)return;
+  const p=evPos(e);
+  mouse.down=false;cv.style.cursor='crosshair';
+  if(mouse.mode==='pan'&&!mouse.moved&&e.target===cv)addPoint(p);
+  if(mouse.mode==='drag')refreshUI();
+});
+let rq=false;
+let cxGuideOpen=false; // 12번 입력 안내 펼침 상태 (재렌더 후 유지)
+function scheduleRender(){if(rq)return;rq=true;requestAnimationFrame(()=>{rq=false;renderImage();redraw();});}
+function refreshValueOnly(){
+  const a=S.active;if(!a)return;
+  const res=compute(a.tool,S.pts,a.code),el=document.querySelector('#activeBody .aval');
+  if(el&&res&&isFinite(res.value))el.innerHTML=fmt(res.value,res.unit)+res.aux.map(([k,v])=>'<small>'+esc(k)+' = '+v.toFixed(k.startsWith('theta')?1:2)+'</small>').join('');
+}
+function addPoint(sp){
+  if(!S.active||S.active.kind!=='num'){
+    if(S.im)flashHint('체크리스트에서 측정할 변수를 먼저 고르세요');
+    return;
+  }
+  if(S.pts.length>=S.active.steps.length){flashHint('점을 모두 찍었습니다. 드래그로 수정하거나 Enter로 저장');return;}
+  const ip=toImg(sp.x,sp.y);
+  if(ip.x<0||ip.y<0||ip.x>S.im.cols||ip.y>S.im.rows)return;
+  S.pts.push(ip);refreshUI();redraw();
+}
+let flashT=null;
+function flashHint(t){const h=$('stepHint');h.textContent=t;h.classList.remove('hidden');clearTimeout(flashT);flashT=setTimeout(()=>refreshUI(),1500);}
+cv.addEventListener('wheel',e=>{
+  if(!S.im)return;e.preventDefault();
+  const p=evPos(e),f=Math.exp(-e.deltaY*0.0015);
+  const ns=Math.min(20,Math.max(0.02,S.scale*f));
+  S.tx=p.x-(p.x-S.tx)*ns/S.scale;S.ty=p.y-(p.y-S.ty)*ns/S.scale;S.scale=ns;redraw();
+},{passive:false});
+function zoomBy(f){const r=cv.getBoundingClientRect(),p={x:r.width/2,y:r.height/2},ns=Math.min(20,Math.max(0.02,S.scale*f));S.tx=p.x-(p.x-S.tx)*ns/S.scale;S.ty=p.y-(p.y-S.ty)*ns/S.scale;S.scale=ns;redraw();}
+$('zIn').onclick=()=>zoomBy(1.3);$('zOut').onclick=()=>zoomBy(1/1.3);$('zFit').onclick=()=>{fit();redraw();};
+$('wlReset').onclick=()=>{if(!S.im)return;S.wc=S.im.wc0;S.ww=S.im.ww0;renderImage();redraw();};
+$('invBtn').onclick=()=>{if(!S.im)return;S.invert=!S.invert;$('invBtn').classList.toggle('on',S.invert);renderImage();redraw();};
+$('ovBtn').onclick=()=>{S.overlay=!S.overlay;$('ovBtn').classList.toggle('on',S.overlay);redraw();};
+window.addEventListener('keydown',e=>{
+  if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+  if($('modalBg').classList.contains('show')){if(e.key==='Escape')$('modalBg').classList.remove('show');return;}
+  if(e.key==='Enter'&&S.active){e.preventDefault();saveActive();}
+  else if((e.key==='Backspace'||e.key==='Delete')&&S.active&&S.pts.length){e.preventDefault();S.pts.pop();refreshUI();redraw();}
+  else if(e.key==='Escape'&&S.active){cancelActive();}
+});
+window.addEventListener('resize',()=>{if(!S.im)return;resize();fit();redraw();});
+window.addEventListener('beforeunload',e=>{if(S.active&&S.pts.length){e.preventDefault();e.returnValue='';}});
+
+// ════════════════════════════════════════════════════════════════
+// 저장 목록 · CSV
+// ════════════════════════════════════════════════════════════════
+// 영상 1장(측정자+회차+파일+측) = 1줄
+function grpKey(r){return [r.rater,r.trial,r.file,r.side].join('\u0001');}
+function myRecs(){const r=rater();return loadRecs().filter(x=>x.rater===r);}
+function auxOf(rec,k){if(!rec||!rec.aux)return'';const a=rec.aux.find(x=>x[0]===k||x[0].startsWith(k+'_'));return a?a[1]:'';}
+const val=c=>g=>g[c]?g[c].value:NA; // 기록 없음 = 기본값 N/A
+// 12번: 기록이 없으면 모든 view = 'view 없음'(기본값), 명시적 N/A면 null
+function cxOfG(g){if(g.UNION&&g.UNION.value===NA)return null;return cortexOf(g.UNION||{aux:[]});}
+const WIDE=[
+  ['번호',(g,i)=>i+1],
+  ['측정자',(g,i,m)=>m.rater],['회차',(g,i,m)=>m.trial],['환자명',(g,i,m)=>m.patient_name||m.patient_code||''],
+  ['수술일',(g,i,m)=>opOf(m.patient_name||m.patient_code||'')],
+  ['촬영일',(g,i,m)=>m.image_date],['POD',(g,i,m)=>podOf(m.image_date,opOf(m.patient_name||m.patient_code||''))],['시기(술전/술후)',(g,i,m)=>phaseOf(m)],['View',(g,i,m)=>m.view],['측',(g,i,m)=>m.side],['파일명',(g,i,m)=>m.file],
+  ['픽셀간격(mm)',(g,i,m)=>m.ps_row_mm===m.ps_col_mm?m.ps_row_mm:m.ps_row_mm+'/'+m.ps_col_mm],
+  ['픽셀간격 출처',(g,i,m)=>m.ps_source||'없음(px 단위)'],
+  ['값 입력(나머지 N/A)',g=>{const req=CHECK_ORDER.filter(c=>VAR_BY[c].kind!=='auto');return req.filter(c=>g[c]&&g[c].value!==NA&&!(c==='UNION'&&!cortexOf(g[c]).complete)).length+'/'+req.length;}],
+  ['1.Ulnar variance(mm)',val('UV')],
+  ['2.절골 각도(°)',val('OST_ANG')],['2.θ 원값(°)',g=>auxOf(g.OST_ANG,'theta')],
+  ['3.Callus Index(b/a)',val('MCI')],['3.a 기준선~정상 피질(mm)',g=>auxOf(g.MCI,'a')],['3.b 기준선~가골 최대점(mm)',g=>auxOf(g.MCI,'b')],['3.측정 방식',g=>g.MCI&&g.MCI.value!==NA?(g.MCI.tool==='lineratio'?'척측 기준선':'직경(구 방식)'):''],
+  ['4.절골면 최대 간극(mm)',val('GAP')],['4.측정 방식',g=>g.GAP&&g.GAP.value!==NA?(g.GAP.tool==='ptline'?'근위 절골면 기준선':'두 점 길이(구 방식)'):''],
+  ['4-1.Step-off(mm)',val('STEPOFF')],
+  ['5.절골부 위치(mm)',val('OST_POS')],
+  ['6.척골 전체 길이(mm)',val('ULNA_LEN')],
+  ['6.절골부 위치(%)',g=>{const u=g._ulna;if(!u)return'';return u.msg||u.pct;}],
+  ['6.% 계산 방식',g=>g._ulna&&!g._ulna.msg?g._ulna.how:''],
+  ['6.짝지은 척골 길이(mm)',g=>g._ulna&&!g._ulna.msg?g._ulna.len:''],
+  ['6.짝지은 척골 길이 촬영일',g=>g._ulna?g._ulna.date:''],
+  ['6.짝지은 척골 길이 날짜 차이(일)',g=>g._ulna&&g._ulna.date?g._ulna.diff:''],
+  ['6.짝지은 척골 길이 파일',g=>g._ulna?g._ulna.files:''],
+  ['8.금속판 위치',val('PLATE_POS')],
+  ['8-1.금속판 홀 개수',val('PLATE_HOLES')],['8-2.사용된 나사 개수',val('SCREW_N')],
+  ['9.나사-절골면 거리(mm)',val('SCREW_DIST')],
+  ['10.Wire hole-절골면 거리(mm)',val('WIRE_DIST')],
+  ['11.절골 정합도(자동)',g=>reductionOf(g)],
+  ...UNION_VIEWS.flatMap(([k,lab])=>[
+    ['12.'+k+' 관찰 피질',g=>{if(g.UNION&&g.UNION.value===NA)return NA;const o=g.UNION?cortexOf(g.UNION).a[k+'_obs']:undefined;return (o===undefined||o===''||o==='none')?'view 없음':o;}],
+    ['12.'+k+' 연결 피질',g=>{if(!g.UNION||g.UNION.value===NA)return'';return cortexOf(g.UNION).a[k+'_br']??'';}]]),
+  ['12.관찰 피질 합',g=>{const c=cxOfG(g);return c&&c.complete?c.obs:'';}],
+  ['12.연결 피질 합',g=>{const c=cxOfG(g);return c&&c.complete?c.br:'';}],
+  ['12.모든 관찰 피질 연결(Y/N)',g=>{const c=cxOfG(g);return c&&c.complete&&c.obs>0?(c.br===c.obs?'Y':'N'):'';}],
+  ['12.유합 체크(판정자)',g=>{const c=cxOfG(g);return c?(c.gone?'Y':'N'):'';}],
+  ['12.유합 체크(누적)',g=>g._ucum||''], // 같은 환자에서 한 번 Y인 날 이후는 모두 Y (2026-11-19 사용자 결정)
+  ['부가.금속판 제거',val('PLATE_RM')],['부가.제거 이유',g=>auxOf(g.PLATE_RM,'reason')],
+  ['기타',g=>(g._other||[]).map(r=>r.var_name+'='+(typeof r.value==='number'?r.value:r.value)+(r.unit&&r.unit!=='ratio'?' '+r.unit:'')).join('; ')],
+  ['최종 저장',(g,i,m)=>m.saved_at],
+  ['점좌표(px,JSON)',g=>{const o={};Object.keys(g).forEach(k=>{if(k[0]!=='_'&&g[k].pts&&g[k].pts.length)o[k]=g[k].pts;});(g._other||[]).forEach(r=>{if(r.pts&&r.pts.length)o['기타:'+r.var_name]=r.pts;});return Object.keys(o).length?JSON.stringify(o):'';}]
+];
+function wideRows(){
+  const groups=new Map();
+  myRecs().forEach(r=>{
+    const k=grpKey(r);if(!groups.has(k))groups.set(k,{g:{_other:[]},m:r});
+    const G=groups.get(k);
+    if(r.var_code==='OTHER')G.g._other.push(r);else G.g[r.var_code]=r;
+    if(String(r.saved_at)>String(G.m.saved_at))G.m=r; // 메타는 가장 최근 기록 기준
+  });
+  const rows=[...groups.entries()].map(([k,G])=>({key:k,g:G.g,m:G.m}));
+  // 6번 %: 5번 값을 같은 측정자·회차·환자·측의 술후(촬영일 ≥ 수술일) 척골 길이 중 촬영일이 가장 가까운 것과 짝지음
+  // (단축 절골로 술전·술후 길이가 다르므로 술전 영상은 제외)
+  const ptKey=m=>[m.rater,m.trial,m.patient_name||m.patient_code||'',m.side].join('\u0001');
+  const ulnaBy=new Map();
+  rows.forEach(r=>{const u=r.g.ULNA_LEN;if(!u||typeof u.value!=='number'||u.unit!=='mm'||!r.m.image_date)return;
+    const k=ptKey(r.m);if(!ulnaBy.has(k))ulnaBy.set(k,[]);ulnaBy.get(k).push({v:u.value,file:r.m.file,date:r.m.image_date,ph:phaseOf(r.m)});});
+  rows.forEach(r=>{const o=r.g.OST_POS;if(!o||typeof o.value!=='number'||o.unit!=='mm'||!r.m.image_date)return;
+    const su=r.g.ULNA_LEN; // 같은 영상에 6번이 있으면 그 값 사용 (배율 상쇄)
+    if(su&&typeof su.value==='number'&&su.unit==='mm'&&su.value>0){
+      r.g._ulna={how:'같은 영상',len:su.value,date:r.m.image_date,diff:0,files:r.m.file,pct:+(o.value/su.value*100).toFixed(2)};return;}
+    const op=opOf(r.m.patient_name||r.m.patient_code||'');
+    if(!op){r.g._ulna={msg:'수술일 없음'};return;}
+    const all=ulnaBy.get(ptKey(r.m))||[],L=all.filter(x=>x.ph==='술후');
+    if(!L.length){r.g._ulna={msg:all.some(x=>x.ph==='수술 당일(미지정)')?'수술 당일 척골 길이 술전/술후 미지정':'술후 척골 길이 없음'};return;}
+    const dd=x=>Math.abs(podOf(x.date,r.m.image_date));
+    const best=Math.min(...L.map(dd)),C=L.filter(x=>dd(x)===best);
+    const base={date:[...new Set(C.map(x=>x.date))].join('; '),diff:podOf(C[0].date,r.m.image_date),files:C.map(x=>x.file).join('; ')};
+    if(C.length>1){r.g._ulna=Object.assign(base,{msg:'가장 가까운 척골 길이 '+C.length+'개'});return;}
+    r.g._ulna=Object.assign(base,{how:'가장 가까운 술후 영상',len:C[0].v,pct:C[0].v>0?+(o.value/C[0].v*100).toFixed(2):''});});
+  // 12번 누적: 같은 측정자·회차·환자·측에서 판정자 체크 Y가 처음 나온 촬영일 이후(그날 포함)는 모두 Y
+  const firstY=new Map();
+  rows.forEach(r=>{const c=cxOfG(r.g);if(!c||!c.gone||!r.m.image_date)return;
+    const k=ptKey(r.m),d=String(r.m.image_date);if(!firstY.has(k)||d<firstY.get(k))firstY.set(k,d);});
+  rows.forEach(r=>{const c=cxOfG(r.g),f=firstY.get(ptKey(r.m)),d=r.m.image_date?String(r.m.image_date):'';
+    r.g._ucum=f&&d&&d>=f?'Y':(c?(c.gone?'Y':'N'):'');});
+  return rows.sort((x,y)=>(x.m.patient_name||'').localeCompare(y.m.patient_name||'')||String(x.m.image_date).localeCompare(String(y.m.image_date))||x.m.file.localeCompare(y.m.file,undefined,{numeric:true})||x.m.side.localeCompare(y.m.side));
+}
+function cellsOf(row,i){return WIDE.map(([h,f])=>{const v=f(row.g,i,row.m);return v===undefined||v===null?'':v;});}
+// 저장 목록 환자 필터 ('' = 전체). 목록 안의 CSV 내보내기·환자 삭제가 이 선택을 따른다
+let listPt='';
+const ptOf=m=>m.patient_name||m.patient_code||'';
+function listRows(){const all=wideRows();return listPt?all.filter(x=>ptOf(x.m)===listPt):all;}
+function renderTable(){
+  const r=rater(),all=wideRows(),cnt=new Map();
+  all.forEach(x=>cnt.set(ptOf(x.m),(cnt.get(ptOf(x.m))||0)+1));
+  if(listPt&&!cnt.has(listPt))listPt='';
+  $('listPt').innerHTML='<option value="">전체 환자 ('+all.length+')</option>'+[...cnt.keys()].sort().map(p=>'<option value="'+esc(p)+'"'+(p===listPt?' selected':'')+'>'+esc(p||'(환자명 없음)')+' ('+cnt.get(p)+')</option>').join('');
+  $('clearPtBtn').disabled=!listPt;
+  const rows=listRows();
+  $('modalTitle').textContent='저장 목록 — '+(r||'(측정자 미입력)')+' · 영상 '+rows.length+'건';
+  const show=WIDE.length-1; // 점좌표는 표에서 숨김
+  $('thead').innerHTML='<tr>'+WIDE.slice(0,show).map(([h])=>'<th>'+esc(h)+'</th>').join('')+'<th></th></tr>';
+  $('tbody').innerHTML=rows.map((row,i)=>{
+    const c=cellsOf(row,i).slice(0,show).map(v=>typeof v==='number'&&!Number.isInteger(v)?+v.toFixed(2):v);
+    return'<tr>'+c.map(v=>'<td>'+esc(v)+'</td>').join('')+'<td class="del" data-key="'+esc(row.key)+'">삭제</td></tr>';
+  }).join('');
+}
+$('listBtn').onclick=()=>{if(!rater()){alert('측정자 이름을 먼저 입력하세요.\n저장 목록은 측정자별로만 보입니다.');return;}renderTable();$('modalBg').classList.add('show');};
+$('closeModal').onclick=()=>$('modalBg').classList.remove('show');
+$('modalBg').onclick=e=>{if(e.target.id==='modalBg')$('modalBg').classList.remove('show');};
+$('tbody').onclick=e=>{const k=e.target.dataset.key;if(k===undefined)return;if(!confirm('이 영상의 측정 기록을 모두 삭제할까요?'))return;saveRecs(loadRecs().filter(r=>grpKey(r)!==k));renderTable();refreshUI();redraw();};
+$('clearBtn').onclick=()=>{const r=rater();if(!r)return;if(!confirm(r+'의 기록(영상 '+wideRows().length+'건)을 모두 삭제할까요?\n(CSV로 먼저 내보냈는지 확인하세요)'))return;saveRecs(loadRecs().filter(x=>x.rater!==r));renderTable();refreshUI();redraw();};
+function exportCsv(filtered){
+  const r=rater();
+  if(!r){alert('측정자 이름을 먼저 입력하세요.');return;}
+  const rows=filtered===true?listRows():wideRows();if(!rows.length){alert('저장된 기록이 없습니다.');return;}
+  const q=v=>{const s=String(v===undefined||v===null?'':v);return /[",\n;]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  const csv='﻿'+WIDE.map(([h])=>q(h)).join(',')+'\n'+rows.map((row,i)=>cellsOf(row,i).map(q).join(',')).join('\n');
+  const d=new Date(),ds=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  // 파일명: 측정자_환자명_날짜. 환자가 여럿이면 3명까지 '-'로 잇고, 그 이상은 '환자N명'
+  const pts=[...new Set(rows.map(x=>x.m.patient_name||x.m.patient_code||'').filter(Boolean))];
+  const pn=!pts.length?'환자명없음':pts.length<=3?pts.join('-'):'환자'+pts.length+'명';
+  const safe=s=>s.replace(/[\\/:*?"<>|\s]/g,'_');
+  a.download=safe(r)+'_'+safe(pn)+'_'+ds+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+$('csvBtn').onclick=()=>exportCsv(false);$('csvBtn2').onclick=()=>exportCsv(true);
+$('listPt').onchange=e=>{listPt=e.target.value;renderTable();};
+$('clearPtBtn').onclick=()=>{const r=rater();if(!r||!listPt)return;
+  const n=listRows().length;
+  if(!confirm(r+'의 「'+listPt+'」 기록(영상 '+n+'건)을 모두 삭제할까요?\n다른 환자 기록과 수술일은 그대로 둡니다.\n(CSV로 먼저 내보냈는지 확인하세요)'))return;
+  saveRecs(loadRecs().filter(x=>!(x.rater===r&&ptOf(x)===listPt)));listPt='';renderTable();refreshUI();redraw();};
+
+refreshUI();
+</script>
+</body>
+</html>
